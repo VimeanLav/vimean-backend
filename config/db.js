@@ -1,13 +1,46 @@
 const mongoose = require("mongoose");
+const { MongoMemoryServer } = require("mongodb-memory-server");
+
+let memoryServer;
 
 const connectDB = async () => {
+  const useMemoryFallback = process.env.USE_IN_MEMORY_FALLBACK === "true";
+
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    if (!process.env.MONGO_URI) {
+      throw new Error("MONGO_URI is not set");
+    }
+
+    await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+    });
     console.log("MongoDB connected");
   } catch (error) {
-    console.error(error);
-    process.exit(1);
+    console.error("Primary MongoDB connection failed:", error.message);
+
+    if (!useMemoryFallback) {
+      process.exit(1);
+    }
+
+    try {
+      memoryServer = await MongoMemoryServer.create();
+      const memoryUri = memoryServer.getUri("ecommerce_dev");
+      await mongoose.connect(memoryUri, {
+        serverSelectionTimeoutMS: 5000,
+      });
+      console.log("Connected to in-memory MongoDB (development fallback)");
+    } catch (memoryError) {
+      console.error("In-memory MongoDB fallback failed:", memoryError.message);
+      process.exit(1);
+    }
   }
 };
+
+process.on("SIGINT", async () => {
+  if (memoryServer) {
+    await memoryServer.stop();
+  }
+  process.exit(0);
+});
 
 module.exports = connectDB;
