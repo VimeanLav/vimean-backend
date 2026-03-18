@@ -2,6 +2,7 @@ const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const connectDB = require("./config/db");
+const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
 dotenv.config({ override: true });
 connectDB();
@@ -20,6 +21,9 @@ app.use("/api/orders", require("./routes/orderRoutes"));
 app.get("/", (req, res) => {
   res.send("API running...");
 });
+
+app.use(notFound);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
