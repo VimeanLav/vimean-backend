@@ -40,7 +40,7 @@ const issueAuthTokens = async (user) => {
 	};
 };
 
-const sendMail = async ({ to, subject, text }) => {
+const sendMail = async ({ to, subject, text, html }) => {
 	const nodemailer = require("nodemailer");
 	const host = process.env.SMTP_HOST;
 	const port = Number(process.env.SMTP_PORT || 587);
@@ -49,7 +49,7 @@ const sendMail = async ({ to, subject, text }) => {
 	const from = process.env.SMTP_FROM || "no-reply@ecommerce.local";
 
 	if (!host || !user || !pass) {
-		console.log("[MAIL Fallback]", { to, subject, text });
+		console.log("[MAIL Fallback]", { to, subject, text, html });
 		return;
 	}
 
@@ -60,7 +60,7 @@ const sendMail = async ({ to, subject, text }) => {
 		auth: { user, pass },
 	});
 
-	await transporter.sendMail({ from, to, subject, text });
+	await transporter.sendMail({ from, to, subject, text, html });
 };
 
 const buildAuthPayload = (user, tokens) => ({
@@ -243,15 +243,19 @@ exports.forgotPassword = async (req, res, next) => {
 			);
 			await user.save();
 
+			const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
+			const resetLink = `${frontendUrl.replace(/\/$/, "")}/?view=auth&mode=reset&token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(user.email)}`;
+
 			await sendMail({
 				to: user.email,
-				subject: "Password reset token",
-				text: `Your password reset token is ${resetToken}. It expires in ${resetTtlMinutes} minutes.`,
+				subject: "Reset your password",
+				text: `Click this link to reset your password: ${resetLink}\n\nThis link expires in ${resetTtlMinutes} minutes.`,
+				html: `<p>Click the link below to reset your password:</p><p><a href=\"${resetLink}\">Reset Password</a></p><p>This link expires in ${resetTtlMinutes} minutes.</p>`,
 			});
 		}
 
 		return res.json({
-			message: "If the email exists, a password reset token has been sent",
+			message: "If the email exists, a password reset link has been sent",
 		});
 	} catch (error) {
 		return next(error);
