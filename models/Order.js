@@ -15,12 +15,20 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ["card", "paypal", "bank"],
+    enum: ["card", "paypal", "bank", "aba"],
     default: "card",
+  },
+  paymentReference: {
+    type: String,
+    default: "",
   },
   status: {
     type: String,
     default: "pending",
+  },
+  paidAt: {
+    type: Date,
+    default: null,
   },
 }, { timestamps: true });
 
