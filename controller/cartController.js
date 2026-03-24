@@ -1,4 +1,6 @@
 const Cart = require("../models/Cart");
+const Book = require("../models/Book");
+const mongoose = require("mongoose");
 
 exports.getCart = async (req, res) => {
   const cart = await Cart.findOne({ user: req.user }).populate("items.book");
@@ -6,7 +8,20 @@ exports.getCart = async (req, res) => {
 };
 
 exports.addToCart = async (req, res) => {
-  const { bookId } = req.body;
+  const { bookId } = req.body || {};
+
+  if (!bookId) {
+    return res.status(400).json({ message: "bookId is required" });
+  }
+
+  if (!mongoose.isValidObjectId(bookId)) {
+    return res.status(400).json({ message: "Invalid bookId" });
+  }
+
+  const bookExists = await Book.exists({ _id: bookId });
+  if (!bookExists) {
+    return res.status(404).json({ message: "Book not found" });
+  }
 
   let cart = await Cart.findOne({ user: req.user });
 
