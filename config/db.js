@@ -11,10 +11,11 @@ const connectDB = async () => {
       throw new Error("MONGO_URI is not set");
     }
 
-    await mongoose.connect(process.env.MONGO_URI, {
+    const conn = await mongoose.connect(process.env.MONGO_URI, {
       serverSelectionTimeoutMS: 5000,
     });
-    console.log("MongoDB connected");
+
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error("Primary MongoDB connection failed:", error.message);
 
@@ -23,12 +24,16 @@ const connectDB = async () => {
     }
 
     try {
+      await mongoose.disconnect();
+
       memoryServer = await MongoMemoryServer.create();
       const memoryUri = memoryServer.getUri("ecommerce_dev");
-      await mongoose.connect(memoryUri, {
+
+      const conn = await mongoose.connect(memoryUri, {
         serverSelectionTimeoutMS: 5000,
       });
-      console.log("Connected to in-memory MongoDB (development fallback)");
+
+      console.log(`Connected to in-memory MongoDB: ${conn.connection.host}`);
     } catch (memoryError) {
       console.error("In-memory MongoDB fallback failed:", memoryError.message);
       process.exit(1);
