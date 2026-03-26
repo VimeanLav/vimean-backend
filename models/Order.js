@@ -2,6 +2,14 @@ const mongoose = require("mongoose");
 
 const orderSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  buyerName: {
+    type: String,
+    default: "",
+  },
+  buyerEmail: {
+    type: String,
+    default: "",
+  },
   items: Array,
   totalPrice: Number,
   shippingInfo: {

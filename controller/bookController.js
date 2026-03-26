@@ -7,7 +7,7 @@ exports.getBooks = async (req, res) => {
 };
 
 exports.createBook = async (req, res) => {
-  const book = new Book(req.body);z
+  const book = new Book(req.body);
   const saved = await book.save();
   res.json(saved);
 };
