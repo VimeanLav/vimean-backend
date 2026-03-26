@@ -70,6 +70,8 @@ exports.createOrder = async (req, res, next) => {
 
     const order = new Order({
       user: req.user,
+      buyerName: req.userDoc?.name || shippingInfo.name || "",
+      buyerEmail: req.userDoc?.email || shippingInfo.email || "",
       items: cart.items,
       totalPrice,
       shippingInfo: {
