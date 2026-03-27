@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const connectDB = require("./config/db");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
+const adminRoutes = require("./routes/adminRoutes");
 
 dotenv.config({ override: true });
 
@@ -16,7 +17,6 @@ app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/books", require("./routes/bookRoutes"));
 app.use("/api/cart", require("./routes/cartRoutes"));
 app.use("/api/orders", require("./routes/orderRoutes"));
-app.use("/api/payments", require("./routes/paymentRoutes"));
 
 app.get("/", (req, res) => {
   res.send("API running...");
