@@ -111,3 +111,12 @@ exports.createOrder = async (req, res, next) => {
     return next(error);
   }
 };
+
+exports.getMyOrders = async (req, res, next) => {
+  try {
+    const orders = await Order.find({ user: req.user }).sort({ createdAt: -1 }).lean();
+    return res.json(orders || []);
+  } catch (error) {
+    return next(error);
+  }
+};
