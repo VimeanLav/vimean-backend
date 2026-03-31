@@ -2,8 +2,8 @@ const express = require("express");
 const router = express.Router();
 
 const { getStats } = require("../controller/adminController");
+const { protect, authorize } = require("../middleware/authMiddleware");
 
-// THIS is the important line 👇
-router.get("/stats", getStats);
+router.get("/stats", protect, authorize("admin"), getStats);
 
-module.exports = router;
+module.exports = router;    

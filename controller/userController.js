@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const User = require("../models/User");
+const Book = require("../models/Book");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -68,9 +69,33 @@ const buildAuthPayload = (user, tokens) => ({
 	name: user.name,
 	email: user.email,
 	role: user.role,
+	avatar: user.avatar || "",
+	phone: user.phone || "",
+	address: user.address || "",
+	city: user.city || "",
+	zip: user.zip || "",
+	country: user.country || "",
+	wishlistBookIds: Array.isArray(user.wishlist) ? user.wishlist.map((id) => String(id)) : [],
 	accessToken: tokens.accessToken,
 	refreshToken: tokens.refreshToken,
 });
+
+const toProfilePayload = (user) => ({
+	_id: user._id,
+	name: user.name,
+	email: user.email,
+	role: user.role,
+	avatar: user.avatar || "",
+	phone: user.phone || "",
+	address: user.address || "",
+	city: user.city || "",
+	zip: user.zip || "",
+	country: user.country || "",
+	wishlistBookIds: Array.isArray(user.wishlist) ? user.wishlist.map((id) => String(id)) : [],
+});
+
+const normalizeWishlistIds = (wishlist) =>
+	Array.isArray(wishlist) ? wishlist.map((id) => String(id)) : [];
 
 exports.registerUser = async (req, res, next) => {
 	try {
@@ -303,6 +328,160 @@ exports.logoutUser = async (req, res, next) => {
 		}
 
 		return res.json({ message: "Logged out successfully" });
+	} catch (error) {
+		return next(error);
+	}
+};
+
+exports.getMe = async (req, res, next) => {
+	try {
+		const user = await User.findById(req.user).select("-password -otpCodeHash -resetPasswordTokenHash -refreshTokenHash");
+
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		return res.json(toProfilePayload(user));
+	} catch (error) {
+		return next(error);
+	}
+};
+
+exports.updateMyProfile = async (req, res, next) => {
+	try {
+		const user = await User.findById(req.user);
+
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		const {
+			name,
+			phone,
+			address,
+			city,
+			zip,
+			country,
+			avatar,
+		} = req.body;
+
+		if (typeof name === "string") user.name = name.trim();
+		if (typeof phone === "string") user.phone = phone.trim();
+		if (typeof address === "string") user.address = address.trim();
+		if (typeof city === "string") user.city = city.trim();
+		if (typeof zip === "string") user.zip = zip.trim();
+		if (typeof country === "string") user.country = country.trim();
+
+		if (typeof avatar === "string") {
+			if (avatar.length > 2 * 1024 * 1024) {
+				return res.status(400).json({ message: "Profile image is too large" });
+			}
+
+			user.avatar = avatar;
+		}
+
+		await user.save();
+		return res.json(toProfilePayload(user));
+	} catch (error) {
+		return next(error);
+	}
+};
+
+exports.changeMyPassword = async (req, res, next) => {
+	try {
+		const { currentPassword, newPassword } = req.body;
+
+		if (!currentPassword || !newPassword) {
+			return res.status(400).json({ message: "currentPassword and newPassword are required" });
+		}
+
+		if (String(newPassword).length < 6) {
+			return res.status(400).json({ message: "New password must be at least 6 characters" });
+		}
+
+		const user = await User.findById(req.user);
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		const isMatched = await bcrypt.compare(currentPassword, user.password);
+		if (!isMatched) {
+			return res.status(400).json({ message: "Current password is incorrect" });
+		}
+
+		user.password = await bcrypt.hash(newPassword, 10);
+		user.refreshTokenHash = null;
+		user.refreshTokenExpiresAt = null;
+		await user.save();
+
+		return res.json({ message: "Password changed successfully" });
+	} catch (error) {
+		return next(error);
+	}
+};
+
+exports.getMyWishlist = async (req, res, next) => {
+	try {
+		const user = await User.findById(req.user).select("wishlist");
+
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		return res.json({ wishlistBookIds: normalizeWishlistIds(user.wishlist) });
+	} catch (error) {
+		return next(error);
+	}
+};
+
+exports.addToWishlist = async (req, res, next) => {
+	try {
+		const { bookId } = req.body;
+
+		if (!bookId) {
+			return res.status(400).json({ message: "bookId is required" });
+		}
+
+		const book = await Book.findById(bookId).select("_id");
+		if (!book) {
+			return res.status(404).json({ message: "Book not found" });
+		}
+
+		const user = await User.findByIdAndUpdate(
+			req.user,
+			{ $addToSet: { wishlist: book._id } },
+			{ new: true, select: "wishlist" }
+		);
+
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		return res.json({ wishlistBookIds: normalizeWishlistIds(user.wishlist) });
+	} catch (error) {
+		return next(error);
+	}
+};
+
+exports.removeFromWishlist = async (req, res, next) => {
+	try {
+		const { bookId } = req.params;
+
+		if (!bookId) {
+			return res.status(400).json({ message: "bookId is required" });
+		}
+
+		const user = await User.findByIdAndUpdate(
+			req.user,
+			{ $pull: { wishlist: bookId } },
+			{ new: true, select: "wishlist" }
+		);
+
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		return res.json({ wishlistBookIds: normalizeWishlistIds(user.wishlist) });
 	} catch (error) {
 		return next(error);
 	}

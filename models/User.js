@@ -23,6 +23,41 @@ const userSchema = new mongoose.Schema(
       enum: ["user", "admin"],
       default: "user",
     },
+    avatar: {
+      type: String,
+      default: "",
+    },
+    phone: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    address: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    city: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    zip: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    country: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    wishlist: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Book",
+      },
+    ],
     isVerified: {
       type: Boolean,
       default: false,

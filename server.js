@@ -10,13 +10,15 @@ dotenv.config({ override: true });
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "5mb" }));
 
 // routes
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/books", require("./routes/bookRoutes"));
 app.use("/api/cart", require("./routes/cartRoutes"));
 app.use("/api/orders", require("./routes/orderRoutes"));
+app.use("/api/payments", require("./routes/paymentRoutes"));
+app.use("/api/admin", require("./routes/adminRoutes"));
 
 app.get("/", (req, res) => {
   res.send("API running...");
