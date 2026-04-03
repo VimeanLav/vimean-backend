@@ -11,6 +11,8 @@ const {
 	getMe,
 	updateMyProfile,
 	changeMyPassword,
+	getMySubscription,
+	selectSubscriptionPlan,
 	getMyWishlist,
 	addToWishlist,
 	removeFromWishlist,
@@ -28,6 +30,8 @@ router.post("/logout", protect, logoutUser);
 router.get("/me", protect, getMe);
 router.put("/me", protect, updateMyProfile);
 router.post("/change-password", protect, changeMyPassword);
+router.get("/subscription", protect, getMySubscription);
+router.post("/subscription/select", protect, selectSubscriptionPlan);
 router.get("/wishlist", protect, getMyWishlist);
 router.post("/wishlist", protect, addToWishlist);
 router.delete("/wishlist/:bookId", protect, removeFromWishlist);

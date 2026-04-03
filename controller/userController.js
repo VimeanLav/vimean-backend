@@ -64,38 +64,83 @@ const sendMail = async ({ to, subject, text, html }) => {
 	await transporter.sendMail({ from, to, subject, text, html });
 };
 
-const buildAuthPayload = (user, tokens) => ({
-	_id: user._id,
-	name: user.name,
-	email: user.email,
-	role: user.role,
-	avatar: user.avatar || "",
-	phone: user.phone || "",
-	address: user.address || "",
-	city: user.city || "",
-	zip: user.zip || "",
-	country: user.country || "",
-	wishlistBookIds: Array.isArray(user.wishlist) ? user.wishlist.map((id) => String(id)) : [],
-	accessToken: tokens.accessToken,
-	refreshToken: tokens.refreshToken,
-});
+const buildAuthPayload = (user, tokens) => {
+	const subscription = buildSubscriptionPayload(user);
 
-const toProfilePayload = (user) => ({
-	_id: user._id,
-	name: user.name,
-	email: user.email,
-	role: user.role,
-	avatar: user.avatar || "",
-	phone: user.phone || "",
-	address: user.address || "",
-	city: user.city || "",
-	zip: user.zip || "",
-	country: user.country || "",
-	wishlistBookIds: Array.isArray(user.wishlist) ? user.wishlist.map((id) => String(id)) : [],
-});
+	return {
+		_id: user._id,
+		name: user.name,
+		email: user.email,
+		role: user.role,
+		avatar: user.avatar || "",
+		phone: user.phone || "",
+		address: user.address || "",
+		city: user.city || "",
+		zip: user.zip || "",
+		country: user.country || "",
+		wishlistBookIds: Array.isArray(user.wishlist)
+			? user.wishlist.map((id) => String(id))
+			: [],
+		subscription,
+		subscriptionPlan: subscription.plan,
+		subscriptionStatus: subscription.status,
+		subscriptionStartedAt: subscription.startedAt,
+		subscriptionRenewsAt: subscription.renewsAt,
+		accessToken: tokens.accessToken,
+		refreshToken: tokens.refreshToken,
+	};
+};
+
+const toProfilePayload = (user) => {
+	const subscription = buildSubscriptionPayload(user);
+
+	return {
+		_id: user._id,
+		name: user.name,
+		email: user.email,
+		role: user.role,
+		avatar: user.avatar || "",
+		phone: user.phone || "",
+		address: user.address || "",
+		city: user.city || "",
+		zip: user.zip || "",
+		country: user.country || "",
+		wishlistBookIds: Array.isArray(user.wishlist)
+			? user.wishlist.map((id) => String(id))
+			: [],
+		subscription,
+		subscriptionPlan: subscription.plan,
+		subscriptionStatus: subscription.status,
+		subscriptionStartedAt: subscription.startedAt,
+		subscriptionRenewsAt: subscription.renewsAt,
+	};
+};
 
 const normalizeWishlistIds = (wishlist) =>
 	Array.isArray(wishlist) ? wishlist.map((id) => String(id)) : [];
+
+const planPricing = {
+	free: 0,
+	pro: 2.99,
+	premium: 9.99,
+};
+
+const buildSubscriptionPayload = (user) => {
+	const plan = ["free", "pro", "premium"].includes(user?.subscriptionPlan)
+		? user.subscriptionPlan
+		: "free";
+	const status = ["active", "inactive"].includes(user?.subscriptionStatus)
+		? user.subscriptionStatus
+		: "active";
+
+	return {
+		plan,
+		status,
+		pricePerMonth: planPricing[plan],
+		startedAt: user?.subscriptionStartedAt || null,
+		renewsAt: user?.subscriptionRenewsAt || null,
+	};
+};
 
 exports.registerUser = async (req, res, next) => {
 	try {
@@ -382,6 +427,80 @@ exports.updateMyProfile = async (req, res, next) => {
 
 		await user.save();
 		return res.json(toProfilePayload(user));
+	} catch (error) {
+		return next(error);
+	}
+};
+
+exports.getMySubscription = async (req, res, next) => {
+	try {
+		const user = await User.findById(req.user).select(
+			"subscriptionPlan subscriptionStatus subscriptionStartedAt subscriptionRenewsAt"
+		);
+
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		return res.json(buildSubscriptionPayload(user));
+	} catch (error) {
+		return next(error);
+	}
+};
+
+exports.selectSubscriptionPlan = async (req, res, next) => {
+	try {
+		const plan = String(req.body?.plan || "").toLowerCase();
+		if (!["free", "pro", "premium"].includes(plan)) {
+			return res.status(400).json({
+				message: "plan must be one of: free, pro, premium",
+			});
+		}
+
+		const paymentMethod = String(req.body?.paymentMethod || (plan === "free" ? "free" : "aba"))
+			.toLowerCase()
+			.trim();
+		const paymentReference = String(req.body?.paymentReference || "").trim();
+
+		if (plan !== "free") {
+			if (paymentMethod !== "aba") {
+				return res.status(400).json({
+					message: "Paid plans require ABA payment",
+				});
+			}
+
+			if (!paymentReference) {
+				return res.status(400).json({
+					message: "paymentReference is required for paid plans",
+				});
+			}
+		}
+
+		const user = await User.findById(req.user);
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		const now = new Date();
+		const monthlyRenewalDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+		user.subscriptionPlan = plan;
+		user.subscriptionStatus = "active";
+		user.subscriptionStartedAt = now;
+		user.subscriptionRenewsAt = plan === "free" ? null : monthlyRenewalDate;
+
+		await user.save();
+
+		const subscription = buildSubscriptionPayload(user);
+		return res.json({
+			message:
+				plan === "free"
+					? "You are now on the Free plan"
+					: `Payment confirmed. Subscription updated to ${plan.charAt(0).toUpperCase()}${plan.slice(1)}`,
+			paymentMethod,
+			paymentReference,
+			subscription,
+		});
 	} catch (error) {
 		return next(error);
 	}
