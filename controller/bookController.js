@@ -37,3 +37,19 @@ exports.updateBookPrice = async (req, res) => {
 
   return res.json(updated);
 };
+
+exports.deleteBook = async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({ message: "Invalid book id" });
+  }
+
+  const deleted = await Book.findByIdAndDelete(id);
+
+  if (!deleted) {
+    return res.status(404).json({ message: "Book not found" });
+  }
+
+  return res.json({ message: "Book deleted successfully" });
+};
