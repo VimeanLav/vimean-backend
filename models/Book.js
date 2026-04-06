@@ -7,6 +7,11 @@ const bookSchema = new mongoose.Schema({
   genre: String,
   image: String,
   description: String,
+  featureTags: {
+    type: [String],
+    default: [],
+    enum: ["trending", "topSeller", "bestSeller", "recommended", "newArrival"],
+  },
 });
 
 module.exports = mongoose.model("Book", bookSchema);
