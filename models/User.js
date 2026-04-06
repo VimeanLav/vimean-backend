@@ -52,6 +52,24 @@ const userSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    subscriptionPlan: {
+      type: String,
+      enum: ["free", "pro", "premium"],
+      default: "free",
+    },
+    subscriptionStatus: {
+      type: String,
+      enum: ["active", "inactive"],
+      default: "active",
+    },
+    subscriptionStartedAt: {
+      type: Date,
+      default: null,
+    },
+    subscriptionRenewsAt: {
+      type: Date,
+      default: null,
+    },
     wishlist: [
       {
         type: mongoose.Schema.Types.ObjectId,
