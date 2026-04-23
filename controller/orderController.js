@@ -1,6 +1,12 @@
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
 
+const PREMIUM_FREE_BOOK_MIN_SUBTOTAL = 50;
+
+const isPremiumUser = (userDoc) =>
+  userDoc?.subscriptionPlan === "premium" &&
+  (userDoc?.subscriptionStatus || "active") === "active";
+
 const sendOrderConfirmationMail = async ({ to, orderId, totalPrice, itemCount }) => {
   const nodemailer = require("nodemailer");
   const host = process.env.SMTP_HOST;
@@ -62,17 +68,36 @@ exports.createOrder = async (req, res, next) => {
       });
     }
 
-    const totalPrice = cart.items.reduce((sum, item) => {
+    const subtotalPrice = cart.items.reduce((sum, item) => {
       const unitPrice = Number(item.book?.price || 0);
       const quantity = Number(item.quantity || 0);
       return sum + unitPrice * quantity;
     }, 0);
+
+    let discountAmount = 0;
+    let freeBookId = null;
+
+    if (isPremiumUser(req.userDoc) && subtotalPrice >= PREMIUM_FREE_BOOK_MIN_SUBTOTAL && cart.freeBookId) {
+      const selected = cart.items.find(
+        (item) => String(item?.book?._id || item?.book) === String(cart.freeBookId)
+      );
+
+      if (selected && Number(selected.quantity || 0) > 0) {
+        discountAmount = Number(selected.book?.price || 0);
+        freeBookId = selected.book?._id || null;
+      }
+    }
+
+    const totalPrice = Math.max(0, subtotalPrice - discountAmount);
 
     const order = new Order({
       user: req.user,
       buyerName: req.userDoc?.name || shippingInfo.name || "",
       buyerEmail: req.userDoc?.email || shippingInfo.email || "",
       items: cart.items,
+      subtotalPrice,
+      discountAmount,
+      freeBookId,
       totalPrice,
       shippingInfo: {
         name: shippingInfo.name,
@@ -104,6 +129,7 @@ exports.createOrder = async (req, res, next) => {
     }
 
     cart.items = [];
+    cart.freeBookId = null;
     await cart.save();
 
     return res.json({ ...order.toObject(), emailSent });

@@ -9,6 +9,9 @@ const toReqTime = (date = new Date()) => {
 
 const buildTransactionId = () => `ORD${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
+const allowMockOnFailure =
+  process.env.ABA_MOCK_ON_FAILURE === "true" || process.env.NODE_ENV !== "production";
+
 const extractQrValue = (payload) => {
   if (!payload || typeof payload !== "object") {
     return "";
@@ -146,6 +149,24 @@ exports.createAbaPurchase = async (req, res, next) => {
     const statusCode = Number(payload?.status?.code);
 
     if (!response.ok || (!Number.isNaN(statusCode) && statusCode !== 0)) {
+      if (allowMockOnFailure) {
+        const fallbackQrValue = `MOCK-KHQR|${tranId}|${amountString}`;
+        return res.json({
+          transactionId: tranId,
+          amount: amountString,
+          qrValue: fallbackQrValue,
+          qrImage: "",
+          checkoutQrUrl: "",
+          abaDeeplink: "",
+          isMock: true,
+          warning:
+            payload?.status?.message ||
+            payload?.message ||
+            "ABA gateway unavailable. Using development fallback.",
+          payload,
+        });
+      }
+
       return res.status(502).json({
         message: payload?.status?.message || payload?.message || "ABA purchase request failed",
         details: payload,

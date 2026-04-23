@@ -11,6 +11,19 @@ const orderSchema = new mongoose.Schema({
     default: "",
   },
   items: Array,
+  subtotalPrice: {
+    type: Number,
+    default: 0,
+  },
+  discountAmount: {
+    type: Number,
+    default: 0,
+  },
+  freeBookId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Book",
+    default: null,
+  },
   totalPrice: Number,
   shippingInfo: {
     name: String,
