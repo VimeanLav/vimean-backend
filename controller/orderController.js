@@ -60,7 +60,6 @@ exports.createOrder = async (req, res, next) => {
       ? "aba"
       : rawPaymentMethod;
     const paymentReference = req.body?.paymentReference || "";
-    const isPaid = paymentMethod === "aba";
 
     if (!shippingInfo.name || !shippingInfo.email || !shippingInfo.address) {
       return res.status(400).json({
@@ -110,8 +109,8 @@ exports.createOrder = async (req, res, next) => {
       },
       paymentMethod,
       paymentReference,
-      status: isPaid ? "paid" : "pending",
-      paidAt: isPaid ? new Date() : null,
+      status: "pending",
+      paidAt: new Date(),
     });
 
     await order.save();

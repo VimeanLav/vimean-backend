@@ -34,7 +34,7 @@ const getOrders = async (req, res) => {
 
   try {
 
-    const orders = await Order.find();
+    const orders = await Order.find().sort({ createdAt: -1 }).lean();
 
     res.json(orders);
 
@@ -61,15 +61,49 @@ const getOrders = async (req, res) => {
 
 
 // Update Order Status
-const updateOrderStatus = (req, res) => {
+const updateOrderStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const normalizedStatus = String(req.body?.status || "")
+      .trim()
+      .toLowerCase();
 
-  const { id } = req.params;
-  const { status } = req.body;
+    const allowedStatuses = [
+      "pending",
+      "processing",
+      "shipped",
+      "delivered",
+      "cancelled",
+    ];
 
-  res.json({
-    message: `Order ${id} updated to ${status}`
-  });
+    if (!id) {
+      return res.status(400).json({ message: "Order id is required" });
+    }
 
+    if (!normalizedStatus || !allowedStatuses.includes(normalizedStatus)) {
+      return res.status(400).json({
+        message: `status must be one of: ${allowedStatuses.join(", ")}`,
+      });
+    }
+
+    const update = { status: normalizedStatus };
+
+    const updatedOrder = await Order.findByIdAndUpdate(id, update, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    return res.json({
+      message: `Order ${id} updated to ${normalizedStatus}`,
+      order: updatedOrder,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Error updating order status" });
+  }
 };
 
 
