@@ -85,7 +85,7 @@ const resolveFrontendUrl = (req) => {
 		}
 	}
 
-	return "http://localhost:3000";
+	return "https://e-commence-taupe.vercel.app";
 };
 
 const buildAuthPayload = (user, tokens) => {
