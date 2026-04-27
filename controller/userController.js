@@ -64,6 +64,30 @@ const sendMail = async ({ to, subject, text, html }) => {
 	await transporter.sendMail({ from, to, subject, text, html });
 };
 
+const resolveFrontendUrl = (req) => {
+	const fromEnv =
+		String(process.env.FRONTEND_URL || process.env.CLIENT_URL || "").trim();
+	if (fromEnv) {
+		return fromEnv;
+	}
+
+	const origin = String(req?.headers?.origin || "").trim();
+	if (/^https?:\/\//i.test(origin)) {
+		return origin;
+	}
+
+	const referer = String(req?.headers?.referer || "").trim();
+	if (/^https?:\/\//i.test(referer)) {
+		try {
+			return new URL(referer).origin;
+		} catch (_error) {
+			// Ignore malformed referer and continue to fallback.
+		}
+	}
+
+	return "http://localhost:3000";
+};
+
 const buildAuthPayload = (user, tokens) => {
 	const subscription = buildSubscriptionPayload(user);
 
@@ -313,7 +337,7 @@ exports.forgotPassword = async (req, res, next) => {
 			);
 			await user.save();
 
-			const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:3000";
+			const frontendUrl = resolveFrontendUrl(req);
 			const resetLink = `${frontendUrl.replace(/\/$/, "")}/?view=auth&mode=reset&token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(user.email)}`;
 
 			await sendMail({
