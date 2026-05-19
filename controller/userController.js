@@ -6,8 +6,8 @@ const jwt = require("jsonwebtoken");
 
 const accessTokenTtl = process.env.JWT_ACCESS_EXPIRES_IN || "15m";
 const refreshTokenTtlDays = Number(process.env.JWT_REFRESH_DAYS || 7);
-const otpTtlMinutes = Number(process.env.OTP_EXPIRES_MINUTES || 10);
-const resetTtlMinutes = Number(process.env.RESET_EXPIRES_MINUTES || 15);
+const otpTtlMinutes = Number(process.env.OTP_EXPIRES_MINUTES || 2);
+const resetTtlMinutes = Number(process.env.RESET_EXPIRES_MINUTES || 2);
 const adminEmails = new Set([
 	"lav.vimean25@kit.edu.kh",
 	"cheang.srengkoang24@kit.edu.kh",
@@ -39,6 +39,27 @@ const issueAuthTokens = async (user) => {
 		accessToken: generateAccessToken(user),
 		refreshToken,
 	};
+};
+
+const setAuthCookies = (res, tokens) => {
+	const isProd = process.env.NODE_ENV === "production";
+	const cookieOptions = {
+		httpOnly: true,
+		secure: isProd,
+		sameSite: isProd ? "None" : "Lax",
+	};
+
+	// Access token cookie: short lived
+	res.cookie("accessToken", tokens.accessToken, {
+		...cookieOptions,
+		maxAge: 15 * 60 * 1000, // 15 minutes
+	});
+
+	// Refresh token cookie: longer lived
+	res.cookie("refreshToken", tokens.refreshToken, {
+		...cookieOptions,
+		maxAge: refreshTokenTtlDays * 24 * 60 * 60 * 1000,
+	});
 };
 
 const sendMail = async ({ to, subject, text, html }) => {
@@ -235,6 +256,13 @@ exports.verifyOtp = async (req, res, next) => {
 		user.otpExpiresAt = null;
 
 		const tokens = await issueAuthTokens(user);
+		// set cookies for frontend convenience (httpOnly)
+		try {
+			setAuthCookies(res, tokens);
+		} catch (e) {
+			console.error("Failed to set auth cookies:", e.message);
+		}
+
 		return res.json(buildAuthPayload(user, tokens));
 	} catch (error) {
 		return next(error);
@@ -265,6 +293,12 @@ exports.loginUser = async (req, res, next) => {
 		}
 
 		const tokens = await issueAuthTokens(user);
+		try {
+			setAuthCookies(res, tokens);
+		} catch (e) {
+			console.error("Failed to set auth cookies:", e.message);
+		}
+
 		return res.json(buildAuthPayload(user, tokens));
 	} catch (error) {
 		return next(error);
@@ -273,7 +307,11 @@ exports.loginUser = async (req, res, next) => {
 
 exports.refreshToken = async (req, res, next) => {
 	try {
-		const { refreshToken } = req.body;
+		// Accept refreshToken from request body or cookie for greater compatibility
+		const refreshToken =
+			req.body?.refreshToken ||
+			req.headers["x-refresh-token"] ||
+			req.cookies?.refreshToken;
 
 		if (!refreshToken) {
 			return res.status(400).json({ message: "refreshToken is required" });
@@ -290,8 +328,15 @@ exports.refreshToken = async (req, res, next) => {
 		}
 
 		const tokens = await issueAuthTokens(user);
+		try {
+			setAuthCookies(res, tokens);
+		} catch (e) {
+			console.error("Failed to set auth cookies on refresh:", e.message);
+		}
+
 		return res.json(tokens);
 	} catch (error) {
+		console.error("refreshToken error:", error.message);
 		return next(error);
 	}
 };
@@ -372,6 +417,23 @@ exports.logoutUser = async (req, res, next) => {
 			user.refreshTokenHash = null;
 			user.refreshTokenExpiresAt = null;
 			await user.save();
+		}
+
+		// clear auth cookies as well
+		try {
+			const isProd = process.env.NODE_ENV === "production";
+			res.clearCookie("accessToken", {
+				httpOnly: true,
+				secure: isProd,
+				sameSite: isProd ? "None" : "Lax",
+			});
+			res.clearCookie("refreshToken", {
+				httpOnly: true,
+				secure: isProd,
+				sameSite: isProd ? "None" : "Lax",
+			});
+		} catch (e) {
+			console.error("Failed to clear auth cookies:", e.message);
 		}
 
 		return res.json({ message: "Logged out successfully" });

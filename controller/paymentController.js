@@ -12,6 +12,14 @@ const buildTransactionId = () => `ORD${Date.now()}${Math.floor(Math.random() * 1
 const allowMockOnFailure =
   process.env.ABA_MOCK_ON_FAILURE === "true" || process.env.NODE_ENV !== "production";
 
+const parsePositiveInteger = (value, fallback) => {
+  const parsed = Number.parseInt(String(value || "").trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const getAbaQrTtlSeconds = () =>
+  parsePositiveInteger(process.env.ABA_QR_TTL_SECONDS, 10);
+
 const extractQrValue = (payload) => {
   if (!payload || typeof payload !== "object") {
     return "";
@@ -80,6 +88,8 @@ exports.createAbaPurchase = async (req, res, next) => {
     const type = "purchase";
     const paymentOption = "abapay_khqr_deeplink";
     const currency = "USD";
+    const qrTtlSeconds = getAbaQrTtlSeconds();
+    const qrExpiresAt = new Date(Date.now() + qrTtlSeconds * 1000).toISOString();
 
     const normalizedItems = items.map((item) => ({
       name: item.name || "Item",
@@ -97,7 +107,7 @@ exports.createAbaPurchase = async (req, res, next) => {
     const returnDeeplink = "";
     const customFields = "";
     const payout = "";
-    const lifetime = "";
+    const lifetime = String(qrTtlSeconds);
     const additionalParams = "";
     const googlePayToken = "";
     const skipSuccessPage = "";
@@ -158,6 +168,8 @@ exports.createAbaPurchase = async (req, res, next) => {
           qrImage: "",
           checkoutQrUrl: "",
           abaDeeplink: "",
+          qrTtlSeconds,
+          qrExpiresAt,
           isMock: true,
           warning:
             payload?.status?.message ||
@@ -185,6 +197,8 @@ exports.createAbaPurchase = async (req, res, next) => {
       qrImage,
       checkoutQrUrl,
       abaDeeplink,
+      qrTtlSeconds,
+      qrExpiresAt,
       payload,
     });
   } catch (error) {

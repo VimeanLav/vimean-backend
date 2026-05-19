@@ -11,6 +11,19 @@ exports.protect = async (req, res, next) => {
     token = req.headers.authorization.split(" ")[1];
   }
 
+  if (!token && req.headers["x-access-token"]) {
+    token = req.headers["x-access-token"];
+  }
+
+  if (!token && req.body && typeof req.body.accessToken === "string") {
+    token = req.body.accessToken;
+  }
+
+  // Fallback: support access token sent in cookie named 'accessToken'
+  if (!token && req.cookies && req.cookies.accessToken) {
+    token = req.cookies.accessToken;
+  }
+
   if (!token) {
     return res.status(401).json({ message: "Not authorized, token missing" });
   }
@@ -32,6 +45,7 @@ exports.protect = async (req, res, next) => {
     req.userDoc = user;
     next();
   } catch (error) {
+    console.error("Auth protect error:", error.message);
     return res.status(401).json({ message: "Not authorized, token invalid" });
   }
 };

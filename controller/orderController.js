@@ -113,7 +113,12 @@ exports.createOrder = async (req, res, next) => {
       paidAt: new Date(),
     });
 
-    await order.save();
+    try {
+      await order.save();
+    } catch (saveError) {
+      console.error("Failed to save order:", saveError, { user: req.user, cartId: cart?._id });
+      throw saveError;
+    }
 
     let emailSent = false;
     try {
@@ -133,6 +138,7 @@ exports.createOrder = async (req, res, next) => {
 
     return res.json({ ...order.toObject(), emailSent });
   } catch (error) {
+    console.error("createOrder error for user:", req.user, error);
     return next(error);
   }
 };
