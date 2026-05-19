@@ -18,7 +18,7 @@ const parsePositiveInteger = (value, fallback) => {
 };
 
 const getAbaQrTtlSeconds = () =>
-  parsePositiveInteger(process.env.ABA_QR_TTL_SECONDS, 10);
+  parsePositiveInteger(process.env.ABA_QR_TTL_SECONDS, 120);
 
 const extractQrValue = (payload) => {
   if (!payload || typeof payload !== "object") {
