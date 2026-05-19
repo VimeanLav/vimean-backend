@@ -88,7 +88,7 @@ const sendMail = async ({ to, subject, text, html }) => {
 	await transporter.sendMail({ from, to, subject, text, html });
 };
 
-const FRONTEND_APP_URL = "https://e-commence-taupe.vercel.app";
+const FRONTEND_APP_URL = "https://ecommence-d55n0zupn-vimeanlavs-projects.vercel.app";
 
 const buildAuthPayload = (user, tokens) => {
 	const subscription = buildSubscriptionPayload(user);
