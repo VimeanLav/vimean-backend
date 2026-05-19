@@ -80,6 +80,9 @@ const sendMail = async ({ to, subject, text, html }) => {
 		port,
 		secure: port === 465,
 		auth: { user, pass },
+		connectionTimeout: 15000,
+		greetingTimeout: 15000,
+		socketTimeout: 20000,
 	});
 
 	await transporter.sendMail({ from, to, subject, text, html });
@@ -208,11 +211,15 @@ exports.registerUser = async (req, res, next) => {
 			});
 		}
 
-		await sendMail({
-			to: user.email,
-			subject: "Your verification OTP",
-			text: `Your OTP is ${otpCode}. It expires in ${otpTtlMinutes} minutes.`,
-		});
+		try {
+			await sendMail({
+				to: user.email,
+				subject: "Your verification OTP",
+				text: `Your OTP is ${otpCode}. It expires in ${otpTtlMinutes} minutes.`,
+			});
+		} catch (mailError) {
+			console.error("OTP email failed:", mailError.message);
+		}
 
 		return res.status(201).json({
 			message: "Registration successful. OTP sent to email.",
