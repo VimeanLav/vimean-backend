@@ -43,9 +43,17 @@ const corsOptions = {
     return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
+  optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  return next();
+});
 app.use(cookieParser());
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true }));

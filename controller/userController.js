@@ -88,7 +88,10 @@ const sendMail = async ({ to, subject, text, html }) => {
 	await transporter.sendMail({ from, to, subject, text, html });
 };
 
-const FRONTEND_APP_URL = "https://ecommence-d55n0zupn-vimeanlavs-projects.vercel.app";
+const FRONTEND_APP_URL =
+	process.env.FRONTEND_APP_URL ||
+	process.env.LOCAL_FRONTEND_APP_URL ||
+	"http://localhost:3000";
 
 const buildAuthPayload = (user, tokens) => {
 	const subscription = buildSubscriptionPayload(user);
